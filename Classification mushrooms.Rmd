@@ -1,0 +1,101 @@
+---
+title: "Classification of Mushrooms"
+author: "Sruthi Kizhakathra"
+date: "May 22, 2018"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(e1071)
+library(stringr)
+library(rpart)
+library(rattle)
+```
+
+```{r}
+df <- read.csv("mushrooms.csv")
+```
+The summary shows there are no missing values and the dataset is clean.
+```{r}
+summary(df)
+```
+Lets look into class of each attribute and the differet levels of data within all attributes. 
+```{r}
+str(df)
+sapply(df, class)
+```
+The data shows all variables are categorical and multiple levels within each variable except for veil.type. We can excude this attribute from our modelling process. 
+```{r}
+df$veil.type <- NULL
+```
+We can also see two different levels: edible(e) and poisonous(p) in the class type which is our target or label that we want to classify mushrooms into. 
+```{r}
+
+table(df$class)
+```
+Let's now take a look at the number of instances (rows) that belong to each class. We can view this as an absolute count and as a percentage.
+```{r}
+# summarize the class distribution
+percentage <- prop.table(table(df$class)) * 100
+cbind(freq=table(df$class), percentage=percentage)
+```
+
+******Modelling******
+
+Lets split our data for building test and training datasets
+```{r}
+train <- df[1:round(0.7*nrow(df),0),]
+test  <- df[(round(0.7*nrow(df),0)+1):nrow(df),]
+```
+
+Lets split the data set into seperate training and testing datasets. Here I am going woth 70-80 percent split for training-testing split.
+```{r}
+sample = sample.split(df, SplitRatio = .7)
+
+train =subset(df,sample ==TRUE) # creates a training dataset named train1 with rows which are marked as TRUE
+test=subset(df, sample==FALSE)
+test1 <- test
+test1$class <- NULL
+
+```
+Decision tree for classification
+
+Now we can use a Decision tree to train our training data.  The decision tree model from the "rpart" package is best used for categorization.
+```{r}
+fit = rpart(class~., data=train, control = rpart.control(cp = .0005)) 
+predicted= predict(fit,test, type="class")
+```
+Percent of the test set that was correctly predicted, with this seed the model happens to predict with 99.85% accuracy
+```{r}
+mean(predicted==test$class) 
+```
+
+Lets create a confusion matrix of model predictions against test data set. The confusion matrix shows the model has 100% accuracy in predicting edible mushrooms whereas model predicts 4 cases as false positive i.e poisoness mushroom predicted as edible. 
+
+```{r}
+table(predicted, test$class)
+```
+
+Support Vector Machine model
+
+The next we will be using a Support Vector Machine with the aid of the "e1701" package. 
+
+```{r}
+svm_model <- svm(class~., data=train, type='C-classification', kernel='radial') 
+pred_train <-predict(svm_model,train) # predicting with the new SVM model
+mean(pred_train==train$class)
+```
+
+SVM predicts the test set with an accuracy of 99.6% with 10 poisoness mushrooms classified as edible and all edible being classified correctly.
+```{r}
+pred_test <-predict(svm_model,test) # predicting with the new SVM model
+mean(pred_test==test$class)
+table(pred_test, test$class)
+```
